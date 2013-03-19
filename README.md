@@ -13,7 +13,7 @@ Example
 
 	chef-daily-backup /chef-backups 10
 
-Creates backups of the database, uploaded cookbooks, and basic .pem files (webui.pem and validation.pem) that can be used to restore your chef environment on a newly built chef server. Any backups in /chef-backups older than 10 days will be deleted after the current backup finishes.
+Creates backups of the database, uploaded cookbooks, and basic .pem files (webui.pem and validation.pem) that can be used to restore your chef environment on a newly built chef server. The backups are stored in /chef-backups (which must already exist). Any backups in /chef-backups older than 10 days will be deleted after the current backup finishes.
 
 Notes
 =====
