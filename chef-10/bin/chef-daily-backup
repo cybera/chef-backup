@@ -7,9 +7,19 @@ RETENTION_DAYS=$2
 
 BACKUP_DATE=`date +"%Y-%m-%d"`
 
+if [ -z "$BACKUP_DIR" ]; then
+	echo "Must specify a BACKUP_DIR"
+	exit 1
+fi
+
 if [ ! -d "$BACKUP_DIR" ]; then
 	echo "BACKUP_DIR: $BACKUP_DIR does not exist!"
 	exit 1
+fi
+
+if [ -z "$RETENTION_DAYS" ]; then
+	echo "RETENTION_DAYS not given. Defaulting to RETENTION_DAYS = 31."
+	RETENTION_DAYS=31
 fi
 
 echo "Backing up chef cookbook files for $BACKUP_DATE to: $BACKUP_DIR"
@@ -18,10 +28,9 @@ echo "Backing up chef credentials for $BACKUP_DATE to: $BACKUP_DIR"
 (cd /etc/chef && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz *.pem)
 echo "Backing up couchdb database for $BACKUP_DATE to: $BACKUP_DIR"
 (cd /var/lib/couchdb && tar -czf $BACKUP_DIR/$BACKUP_DATE-couchdb.tar.gz *)
+echo "Daily backup for $BACKUP_DATE complete."
 
 echo "Deleting backups older than $RETENTION_DAYS days"
 find $BACKUP_DIR -name "*-chef-data.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
 find $BACKUP_DIR -name "*-chef-credentials.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
 find $BACKUP_DIR -name "*-couchdb.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
-
-echo "Daily backup for $BACKUP_DATE complete."
