@@ -37,7 +37,7 @@ done
 # Info on installing to /usr/local/bin via the stow package
 echo "If you have stow installed (apt-get install stow), you can create links in /usr/local via:"
 echo
-if [[ $(dirname $SOURCE_DIR) -ne "/usr/local/stow" ]]; then
+if [[ "$(dirname $SOURCE_DIR)" != "/usr/local/stow" ]]; then
 	echo "mv $SOURCE_DIR /usr/local/stow"
 fi
 echo "cd /usr/local/stow; stow $(basename $SOURCE_DIR)"
