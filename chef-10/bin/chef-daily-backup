@@ -12,14 +12,6 @@ if [ ! -d "$BACKUP_DIR" ]; then
 	exit 1
 fi
 
-couchdb_version=`couchdb -V | grep -E "couchdb - Apache CouchDB" | sed "s/[^0-9\.]*//"`
-check_chef=`curl $(cat /var/lib/couchdb/$couchdb_version/couch.uri)"_all_dbs" 2>/dev/null | grep "chef"`
-
-if [ -z "$check_chef" ]; then
-	echo "Can't find a couchdb instance with a chef database! This script only backs up Chef 10.x servers."
-	exit 1
-fi
-
 echo "Backing up chef cookbook files for $BACKUP_DATE to: $BACKUP_DIR"
 (cd /var/lib/chef && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz cookbook_index)
 echo "Backing up chef credentials for $BACKUP_DATE to: $BACKUP_DIR"
