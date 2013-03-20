@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# USAGE: chef-restore-from-backup BACKUP_DIR YYYY-MM-DD
+
+LIB_PREFIX=/var/lib
+CONFIG_PREFIX=/etc
+
+COUCHDB_LIB_DIR=$LIB_PREFIX/couchdb
+CHEF_LIB_DIR=$LIB_PREFIX/chef
+CHEF_CONFIG_DIR=$CONFIG_PREFIX/chef
+
+CHEF_SERVER_URL=http://127.0.0.1:4000
+DEFAULT_USER=chef-webui
+DEFAULT_PEM=$CHEF_CONFIG_DIR/webui.pem
+
+# Command line arguments
+BACKUP_DIR=$1
+BACKUP_DATE=$2
+
+# Make sure we have everything we need.
+if [ ! -d "$BACKUP_DIR" ]; then
+	echo "BACKUP_DIR: $BACKUP_DIR does not exist!"
+	exit 1
+fi
+
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-couchdb.tar.gz" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-couchdb.tar.gz not found!"
+    exit 1
+fi
+
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz not found!"
+    exit 1
+fi
+
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz not found!"
+    exit 1
+fi
+
+function heading {
+	echo
+	echo "****** $1 ******"
+	echo
+} 
+
+echo
+echo "****************************************"
+echo "*   chef server: restore from backup   *"
+echo "****************************************"
+echo
+read -p "Are you sure you want to overwrite your current Chef server data with the backup from $BACKUP_DATE? (y/N): " confirmation
+case $confirmation in
+	[Yy]* ) echo;;
+	[Nn]* ) exit;;
+		* ) exit;;
+esac
+
+# Stop all running chef services
+heading "Stopping chef services"
+
+service couchdb stop
+# A bug in Ubuntu 12.04 makes the above attempt to stop couchdb ineffective if the
+# service has not been shut down otherwise since its initial install and started via
+# "service couchdb start" (or /etc/init.d/couchdb start). So we have to be a little
+# bit harsher in making sure it's shut down. We're overwriting the database anyway.
+ps -U couchdb -o pid= | xargs kill -9
+
+service chef-server stop
+service chef-expander stop
+service chef-server-webui stop
+service chef-solr stop
+service chef-client stop
+service rabbitmq-server stop
+
+# Restore the chef backup
+heading "Restoring from backup on $BACKUP_DATE"
+
+echo "Restoring couchdb from $BACKUP_DATE"
+tar -xzf $BACKUP_DIR/$BACKUP_DATE-couchdb.tar.gz -C $COUCHDB_LIB_DIR
+echo "Restoring chef cookbooks from $BACKUP_DATE"
+tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz -C $CHEF_LIB_DIR
+echo "Restoring chef credentials from $BACKUP_DATE"
+tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz -C $CHEF_CONFIG_DIR
+
+heading "Restarting chef services"
+
+service couchdb start
+service chef-server start
+service chef-expander start
+service chef-server-webui start
+service chef-solr start
+service chef-client start
+service rabbitmq-server start
+
+heading "Rebuilding search index"
+# Rebuild the search index with the restored data in place
+knife index rebuild --server-url $CHEF_SERVER_URL --user $DEFAULT_USER --key $DEFAULT_PEM -y

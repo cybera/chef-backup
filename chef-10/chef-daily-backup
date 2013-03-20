@@ -2,12 +2,13 @@
 
 # USAGE: chef-daily-backup BACKUP_DIR RETENTION_DAYS
 
-backup_dir=$1
-backup_date=`date +"%Y-%m-%d"`
-retention_days=$2
+BACKUP_DIR=$1
+RETENTION_DAYS=$2
 
-if [ ! -d "$backup_dir" ]; then
-	echo "BACKUP_DIR: $backup_dir does not exist."
+BACKUP_DATE=`date +"%Y-%m-%d"`
+
+if [ ! -d "$BACKUP_DIR" ]; then
+	echo "BACKUP_DIR: $BACKUP_DIR does not exist!"
 	exit 1
 fi
 
@@ -15,20 +16,20 @@ couchdb_version=`couchdb -V | grep -E "couchdb - Apache CouchDB" | sed "s/[^0-9\
 check_chef=`curl $(cat /var/lib/couchdb/$couchdb_version/couch.uri)"_all_dbs" 2>/dev/null | grep "chef"`
 
 if [ -z "$check_chef" ]; then
-	echo "Can't find a couchdb instance with a chef database. This script only backs up Chef 10.x servers."
+	echo "Can't find a couchdb instance with a chef database! This script only backs up Chef 10.x servers."
 	exit 1
 fi
 
-echo "Backing up chef cookbook files for $backup_date to: $backup_dir"
-(cd /var/lib/chef && tar -czf $backup_dir/$backup_date-chef-data.tar.gz cookbook_index)
-echo "Backing up chef credentials for $backup_date to: $backup_dir"
-(cd /etc/chef && tar -czf $backup_dir/$backup_date-chef-credentials.tar.gz *.pem)
-echo "Backing up couchdb database for $backup_date to: $backup_dir"
-(cd /var/lib/couchdb && tar -czf $backup_dir/$backup_date-couchdb.tar.gz *)
+echo "Backing up chef cookbook files for $BACKUP_DATE to: $BACKUP_DIR"
+(cd /var/lib/chef && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz cookbook_index)
+echo "Backing up chef credentials for $BACKUP_DATE to: $BACKUP_DIR"
+(cd /etc/chef && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz *.pem)
+echo "Backing up couchdb database for $BACKUP_DATE to: $BACKUP_DIR"
+(cd /var/lib/couchdb && tar -czf $BACKUP_DIR/$BACKUP_DATE-couchdb.tar.gz *)
 
-echo "Deleting backups older than $retention_days days"
-find $backup_dir -name "*-chef-data.tar.gz" -mtime +$retention_days -exec rm -rv {} \;
-find $backup_dir -name "*-chef-credentials.tar.gz" -mtime +$retention_days -exec rm -rv {} \;
-find $backup_dir -name "*-couchdb.tar.gz" -mtime +$retention_days -exec rm -rv {} \;
+echo "Deleting backups older than $RETENTION_DAYS days"
+find $BACKUP_DIR -name "*-chef-data.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+find $BACKUP_DIR -name "*-chef-credentials.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+find $BACKUP_DIR -name "*-couchdb.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
 
-echo "Daily backup for $backup_date complete."
+echo "Daily backup for $BACKUP_DATE complete."
