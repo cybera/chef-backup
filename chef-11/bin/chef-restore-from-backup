@@ -51,7 +51,7 @@ chef-server-ctl stop
 heading "Restoring from backup on $BACKUP_DATE"
 
 echo "Restoring postgresql from $BACKUP_DATE"
-sudo -u opscode-pgsql /opt/chef-server/embedded/bin/pg_restore $BACKUP_DIR/$BACKUP_DATE.sql
+sudo -u opscode-pgsql /opt/chef-server/embedded/bin/pgsql < $BACKUP_DIR/$BACKUP_DATE.sql
 
 echo "Restoring chef cookbooks from $BACKUP_DATE"
 tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz -C /var/opt/chef-server/bookshelf
