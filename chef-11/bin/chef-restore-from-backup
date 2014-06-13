@@ -59,7 +59,10 @@ chef-server-ctl stop
 echo "Restoring chef cookbooks from $BACKUP_DATE"
 tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz -C /var/opt/chef-server/bookshelf
 
+echo "Restoring chef credentials from $BACKUP_DATE"
+tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz -C /etc/chef-server
+
 chef-server-ctl start
 heading "Waiting to reindex"
-sleep 10
+sleep 20
 chef-server-ctl reindex
