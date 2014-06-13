@@ -22,8 +22,6 @@ fi
 
 if [[ -z $CHECK_CHEF_10 ]]; then
 	VERSION_DIR=chef-11
-	echo "Currently, only Chef 10.x servers are supported!"
-	exit 1
 else
 	VERSION_DIR=chef-10
 fi

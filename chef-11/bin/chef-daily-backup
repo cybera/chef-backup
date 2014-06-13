@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# USAGE: chef-daily-backup BACKUP_DIR RETENTION_DAYS
+# See: https://wiki.opscode.com/display/chef/Backup+Chef+Server+V11+Components
+
+BACKUP_DIR=$1
+RETENTION_DAYS=$2
+
+BACKUP_DATE=`date +"%Y-%m-%d"`
+
+if [ -z "$BACKUP_DIR" ]; then
+	echo "Must specify a BACKUP_DIR"
+	exit 1
+fi
+
+if [ ! -d "$BACKUP_DIR" ]; then
+	echo "BACKUP_DIR: $BACKUP_DIR does not exist!"
+	exit 1
+fi
+
+if [ -z "$RETENTION_DAYS" ]; then
+	echo "RETENTION_DAYS not given. Defaulting to RETENTION_DAYS = 31."
+	RETENTION_DAYS=31
+fi
+
+echo "Backing up chef cookbook files for $BACKUP_DATE to: $BACKUP_DIR"
+(cd /var/opt/chef-server/bookshelf && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz data)
+echo "Backing up postgresql database for $BACKUP_DATE to: $BACKUP_DIR"
+(sudo -u opscode-pgsql /opt/chef-server/embedded/bin/pg_dump opscode_chef >$BACKUP_DIR/$BACKUP_DATE.sql)
+echo "Daily backup for $BACKUP_DATE complete."
+
+echo "Deleting backups older than $RETENTION_DAYS days"
+find $BACKUP_DIR -name "*-chef-data.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+find $BACKUP_DIR -name "*.sql" -mtime +$RETENTION_DAYS -exec rm -rv {} \;

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# USAGE: chef-restore-from-backup BACKUP_DIR YYYY-MM-DD
+# See: https://wiki.opscode.com/display/chef/Backup+Chef+Server+V11+Components
+
+# Command line arguments
+BACKUP_DIR=$1
+BACKUP_DATE=$2
+
+# Make sure we have everything we need.
+if [ ! -d "$BACKUP_DIR" ]; then
+	echo "BACKUP_DIR: $BACKUP_DIR does not exist!"
+	exit 1
+fi
+
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE.sql" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE.sql not found!"
+    exit 1
+fi
+
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz not found!"
+    exit 1
+fi
+
+function heading {
+	echo
+	echo "****** $1 ******"
+	echo
+} 
+
+echo
+echo "****************************************"
+echo "*   chef server: restore from backup   *"
+echo "****************************************"
+echo
+read -p "Are you sure you want to overwrite your current Chef server data with the backup from $BACKUP_DATE? (y/N): " confirmation
+case $confirmation in
+	[Yy]* ) echo;;
+	[Nn]* ) exit;;
+		* ) exit;;
+esac
+
+
+# Stop all running chef services
+heading "Stopping chef services"
+
+chef-server-ctl stop
+pg_restore 
+
+# Restore the chef backup
+heading "Restoring from backup on $BACKUP_DATE"
+
+echo "Restoring postgresql from $BACKUP_DATE"
+sudo -u opscode-pgsql /opt/chef-server/embedded/bin/pg_dump $BACKUP_DIR/$BACKUP_DATE.sql
+
+echo "Restoring chef cookbooks from $BACKUP_DATE"
+tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz -C /var/opt/chef-server/bookshelf
+
+chef-server-ctl start
+chef-server-ctl reindex
