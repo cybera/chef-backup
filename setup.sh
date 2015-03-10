@@ -15,15 +15,22 @@ fi
 mkdir $SOURCE_DIR/bin
 
 # Check if we're using Chef 10.x (which uses CouchDB). Set the VERSION_DIR appropriately.
-COUCHDB_VERSION=$(couchdb -V 2>/dev/null | grep -E "couchdb - Apache CouchDB" | sed "s/[^0-9\.]*//")
-if [[ -n $COUCHDB_VERSION ]]; then
-	CHECK_CHEF_10=$(curl $(cat /var/lib/couchdb/$COUCHDB_VERSION/couch.uri)"_all_dbs" 2>/dev/null | grep chef)
-fi
 
-if [[ -z $CHECK_CHEF_10 ]]; then
-	VERSION_DIR=chef-11
+dpkg -s "chef-server-core" > /dev/null 2>&1
+INSTALLED=$?
+
+if [ $INSTALLED == '0' ]; then
+  VERSION_DIR=chef-12
 else
+  COUCHDB_VERSION=$(couchdb -V 2>/dev/null | grep -E "couchdb - Apache CouchDB" | sed "s/[^0-9\.]*//")
+  if [[ -n $COUCHDB_VERSION ]]; then
+	CHECK_CHEF_10=$(curl $(cat /var/lib/couchdb/$COUCHDB_VERSION/couch.uri)"_all_dbs" 2>/dev/null | grep chef)
+  fi
+  if [[ -z $CHECK_CHEF_10 ]]; then
+	VERSION_DIR=chef-11
+  else
 	VERSION_DIR=chef-10
+  fi
 fi
 
 # Make our symbolic links to the version specific scripts off of the base directory
