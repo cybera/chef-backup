@@ -23,14 +23,20 @@ if [ -z "$RETENTION_DAYS" ]; then
 	RETENTION_DAYS=31
 fi
 
-echo "Backing up chef cookbook files for $BACKUP_DATE to: $BACKUP_DIR"
-(cd /var/opt/opscode/bookshelf && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz data)
-echo "Backing up chef credentials for $BACKUP_DATE to: $BACKUP_DIR"
-(cd /etc/opscode && tar -czf $BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz *.pem)
-echo "Backing up postgresql database for $BACKUP_DATE to: $BACKUP_DIR"
-(sudo -u opscode-pgsql /opt/opscode/embedded/bin/pg_dump --clean opscode_chef >$BACKUP_DIR/$BACKUP_DATE.sql)
+echo "Backing up chef data and credentials for $BACKUP_DATE to: $BACKUP_DIR"
+(sudo tar cfzp $BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz /etc/opscode /var/opt/opscode/ /etc/ssl/cybera)
+
+echo "Backing up postgresql database (opscode_chef) for $BACKUP_DATE to: $BACKUP_DIR"
+(sudo -u opscode-pgsql /opt/opscode/embedded/bin/pg_dump --clean opscode_chef >$BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql)
+
+echo "Backing up postgresql database (bifrost) for $BACKUP_DATE to: $BACKUP_DIR"
+(sudo -u opscode-pgsql /opt/opscode/embedded/bin/pg_dump --clean bifrost >$BACKUP_DIR/$BACKUP_DATE-bifrost.sql)
+
 echo "Daily backup for $BACKUP_DATE complete."
 
 echo "Deleting backups older than $RETENTION_DAYS days"
-find $BACKUP_DIR -name "*-chef-data.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+
+find $BACKUP_DIR -name "var-opt-opscode-*.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
 find $BACKUP_DIR -name "*.sql" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+
+echo "Backup complete"

@@ -13,13 +13,18 @@ if [ ! -d "$BACKUP_DIR" ]; then
 	exit 1
 fi
 
-if [ ! -f "$BACKUP_DIR/$BACKUP_DATE.sql" ]; then
-    echo "$BACKUP_DIR/$BACKUP_DATE.sql not found!"
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql not found!"
     exit 1
 fi
 
-if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz" ]; then
-    echo "$BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz not found!"
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-bifrost.sql" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-bifrost.sql not found!"
+    exit 1
+fi
+
+if [ ! -f "$BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz" ]; then
+    echo "$BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz not found!"
     exit 1
 fi
 
@@ -42,27 +47,28 @@ case $confirmation in
 esac
 
 
+echo "Restoring chef cookbooks from $BACKUP_DATE"
+(sudo tar xfzp $BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz -C /)
+
 # Reconfigure Chef
 heading "Reconfiguring chef services"
 
 chef-server-ctl reconfigure
 
+heading "Waiting to restore databases"
+sleep 10
+
 # Restore the chef backup
 heading "Restoring from backup on $BACKUP_DATE"
-echo "Restoring postgresql from $BACKUP_DATE"
-sudo -u opscode-pgsql /opt/opscode/embedded/bin/psql opscode_chef < $BACKUP_DIR/$BACKUP_DATE.sql
+echo "Restoring postgresql databases from $BACKUP_DATE"
 
-# Stop Chef
-heading "Stopping chef services"
-chef-server-ctl stop
+(sudo -u opscode-pgsql /opt/opscode/embedded/bin/psql opscode_chef < $BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql)
 
-echo "Restoring chef cookbooks from $BACKUP_DATE"
-tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-data.tar.gz -C /var/opt/opscode/bookshelf
+(sudo -u opscode-pgsql /opt/opscode/embedded/bin/psql bifrost < $BACKUP_DIR/$BACKUP_DATE-bifrost.sql)
 
-echo "Restoring chef credentials from $BACKUP_DATE"
-tar -xzf $BACKUP_DIR/$BACKUP_DATE-chef-credentials.tar.gz -C /etc/opscode
+heading "Waiting to restart chef services"
+sleep 10
 
-chef-server-ctl start
-heading "Waiting to reindex"
-sleep 20
-chef-server-ctl reindex
+chef-server-ctl restart
+
+heading "Restore complete"
