@@ -47,8 +47,8 @@ case $confirmation in
 esac
 
 
-echo "Restoring chef cookbooks from $BACKUP_DATE"
-(sudo tar xfzp $BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz -C /)
+echo "Restoring chef data and credentials from $BACKUP_DATE"
+(sudo tar xvfzp $BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz -C /)
 
 # Reconfigure Chef
 heading "Reconfiguring chef services"
