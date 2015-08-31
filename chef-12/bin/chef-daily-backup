@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # USAGE: chef-daily-backup BACKUP_DIR RETENTION_DAYS
-# See: https://wiki.opscode.com/display/chef/Backup+Chef+Server+V11+Components
+# See: https://docs.chef.io/server_backup_restore.html
 
 BACKUP_DIR=$1
 RETENTION_DAYS=$2
