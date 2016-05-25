@@ -1,30 +1,37 @@
 #!/bin/bash
 
 # USAGE: chef-restore-from-backup BACKUP_DIR YYYY-MM-DD
-# See: https://wiki.opscode.com/display/chef/Backup+Chef+Server+V11+Components
+# See: https://docs.chef.io/server_backup_restore.html
+
+CHEF_BIN_PATH=/opt/opscode/embedded/bin
 
 # Command line arguments
 BACKUP_DIR=$1
 BACKUP_DATE=$2
 
 # Make sure we have everything we need.
+if [ -z "$BACKUP_DIR" ]; then
+	echo "Must specify a BACKUP_DIR"
+	exit 1
+fi
+
+if [ -z "$BACKUP_DATE" ]; then
+	echo "Must specify a BACKUP_DATE"
+	exit 1
+fi
+
 if [ ! -d "$BACKUP_DIR" ]; then
 	echo "BACKUP_DIR: $BACKUP_DIR does not exist!"
 	exit 1
 fi
 
-if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql" ]; then
-    echo "$BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql not found!"
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-chef-files.tar.gz" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-chef-files.tar.gz not found!"
     exit 1
 fi
 
-if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-bifrost.sql" ]; then
-    echo "$BACKUP_DIR/$BACKUP_DATE-bifrost.sql not found!"
-    exit 1
-fi
-
-if [ ! -f "$BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz" ]; then
-    echo "$BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz not found!"
+if [ ! -f "$BACKUP_DIR/$BACKUP_DATE-chef-db.gz" ]; then
+    echo "$BACKUP_DIR/$BACKUP_DATE-chef-db.gz not found!"
     exit 1
 fi
 
@@ -46,29 +53,32 @@ case $confirmation in
 		* ) exit;;
 esac
 
+echo "Stopping chef services"
+chef-server-ctl stop
+
+heading "Restoring $BACKUP_DATE"
 
 echo "Restoring chef data and credentials from $BACKUP_DATE"
-(sudo tar xvfzp $BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz -C /)
+tar xvfzp $BACKUP_DIR/$BACKUP_DATE-chef-files.tar.gz --exclude='var/opt/opscode/drbd/data/postgresql_9.2' -C /
 
-# Reconfigure Chef
+echo "Starting the chef database"
+chef-server-ctl start postgresql
+
+echo "Restoring postgresql databases from $BACKUP_DATE"
+gunzip -c $BACKUP_DIR/$BACKUP_DATE-chef-db.gz | sudo -E -u opscode-pgsql $CHEF_BIN_PATH/psql -U "opscode-pgsql" -d postgres
+
+echo "Starting chef's rabbitmq"
+chef-server-ctl start rabbitmq
+echo "Waiting 10s for rabbitmq to fully initialize"
+sleep 10
+echo "Deleting rabbitmq chef user (to be recreated during reconfiguration)"
+$CHEF_BIN_PATH/rabbitmqctl delete_user chef
+
 heading "Reconfiguring chef services"
-
 chef-server-ctl reconfigure
 
-heading "Waiting to restore databases"
+heading "Starting all chef services"
+chef-server-ctl start
 sleep 10
-
-# Restore the chef backup
-heading "Restoring from backup on $BACKUP_DATE"
-echo "Restoring postgresql databases from $BACKUP_DATE"
-
-(sudo -u opscode-pgsql /opt/opscode/embedded/bin/psql opscode_chef < $BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql)
-
-(sudo -u opscode-pgsql /opt/opscode/embedded/bin/psql bifrost < $BACKUP_DIR/$BACKUP_DATE-bifrost.sql)
-
-heading "Waiting to restart chef services"
-sleep 10
-
-chef-server-ctl restart
 
 heading "Restore complete"

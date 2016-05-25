@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # USAGE: chef-daily-backup BACKUP_DIR RETENTION_DAYS
-# See: https://wiki.opscode.com/display/chef/Backup+Chef+Server+V11+Components
+# See: https://docs.chef.io/server_backup_restore.html
+
+CHEF_BIN_PATH=/opt/opscode/embedded/bin
 
 BACKUP_DIR=$1
 RETENTION_DAYS=$2
@@ -23,20 +25,17 @@ if [ -z "$RETENTION_DAYS" ]; then
 	RETENTION_DAYS=31
 fi
 
-echo "Backing up chef data and credentials for $BACKUP_DATE to: $BACKUP_DIR"
-(sudo tar cfzp $BACKUP_DIR/var-opt-opscode-$BACKUP_DATE.tar.gz /etc/opscode /var/opt/opscode/ /etc/ssl/cybera)
-
 echo "Backing up postgresql database (opscode_chef) for $BACKUP_DATE to: $BACKUP_DIR"
-(sudo -u opscode-pgsql /opt/opscode/embedded/bin/pg_dump --clean opscode_chef >$BACKUP_DIR/$BACKUP_DATE-opscode_chef.sql)
+sudo -u opscode-pgsql $CHEF_BIN_PATH/pg_dumpall -c | gzip --fast > $BACKUP_DIR/$BACKUP_DATE-chef-db.gz
 
-echo "Backing up postgresql database (bifrost) for $BACKUP_DATE to: $BACKUP_DIR"
-(sudo -u opscode-pgsql /opt/opscode/embedded/bin/pg_dump --clean bifrost >$BACKUP_DIR/$BACKUP_DATE-bifrost.sql)
+echo "Backing up chef data and credentials for $BACKUP_DATE to: $BACKUP_DIR"
+tar cvfzp $BACKUP_DIR/$BACKUP_DATE-chef-files.tar.gz /etc/opscode /var/opt/opscode --exclude='var/opt/opscode/postgresql' --exclude='var/opt/opscode/drbd/data/postgresql_9.2'
 
 echo "Daily backup for $BACKUP_DATE complete."
 
 echo "Deleting backups older than $RETENTION_DAYS days"
 
-find $BACKUP_DIR -name "var-opt-opscode-*.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
-find $BACKUP_DIR -name "*.sql" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+find $BACKUP_DIR -name "*-chef-files.tar.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
+find $BACKUP_DIR -name "*-chef-db.gz" -mtime +$RETENTION_DAYS -exec rm -rv {} \;
 
 echo "Backup complete"
