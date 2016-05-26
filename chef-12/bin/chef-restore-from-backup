@@ -63,9 +63,10 @@ tar xvfzp $BACKUP_DIR/$BACKUP_DATE-chef-files.tar.gz --exclude='var/opt/opscode/
 
 echo "Starting the chef database"
 chef-server-ctl start postgresql
+sleep 10
 
 echo "Restoring postgresql databases from $BACKUP_DATE"
-gunzip -c $BACKUP_DIR/$BACKUP_DATE-chef-db.gz | sudo -E -u opscode-pgsql $CHEF_BIN_PATH/psql -U "opscode-pgsql" -d postgres
+gunzip -c $BACKUP_DIR/$BACKUP_DATE-chef-db.gz | sudo -u opscode-pgsql $CHEF_BIN_PATH/psql -U "opscode-pgsql" -d postgres
 
 echo "Starting chef's rabbitmq"
 chef-server-ctl start rabbitmq
